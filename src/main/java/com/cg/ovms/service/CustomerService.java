@@ -17,6 +17,9 @@ public interface CustomerService {
 
 	public Customer updateCustomer(Customer customer) throws RecordNotFoundException;
 
-	public List<Customer> viewAllCustomer(String type) throws RecordNotFoundException;
+	public List<Customer> viewAllCustomer(String name) throws RecordNotFoundException;
 
+	public List<Customer> getAllCustomers() throws RecordNotFoundException;
+	
+	public Customer getCustomerByEmail(String email) throws RecordNotFoundException;
 }

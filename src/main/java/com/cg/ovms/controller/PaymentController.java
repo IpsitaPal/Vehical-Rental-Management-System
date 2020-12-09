@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +31,7 @@ import com.cg.ovms.exception.RecordNotFoundException;
 import com.cg.ovms.service.PaymentService;
 
 @RestController
+@CrossOrigin//(origins = "*", allowedHeaders = "*")
 @RequestMapping("/ovms")
 public class PaymentController {
 	
@@ -38,8 +40,9 @@ public class PaymentController {
 	
 	static Logger log = Logger.getLogger(PaymentController.class.getName());
 	
+	//Calls AddPayment Method from Service Layer
 	@PostMapping("/payment")
-	public ResponseEntity<Payment> addPayment(@Valid @RequestBody Payment payment) { //throws DuplicateRecordException {			
+	public ResponseEntity<Payment> addPayment(@Valid @RequestBody Payment payment) { 			
 		
 		log.info("- addPayment - Entry ");
 		payment = paymentService.addPayment(payment);
@@ -47,7 +50,8 @@ public class PaymentController {
 		
 		return new ResponseEntity<Payment>(payment, HttpStatus.OK);
 	}
-
+	
+	//Checks if PaymentId is 0. If not, calls updatePayment Method from Service Layer
 	@PutMapping("/payment")
 	public ResponseEntity<Payment> updatePayment(@Valid @RequestBody Payment payment) throws MethodArgumentNotValidException, NoSuchMethodException, SecurityException {			
 		
@@ -65,16 +69,18 @@ public class PaymentController {
 		return new ResponseEntity<Payment>(payment, HttpStatus.OK);
 	}
 
+	//Calls cancelPayment Method from Service Layer
 	@DeleteMapping("/payment/{paymentId}")
 	public ResponseEntity<Payment> cancelPayment(@NotEmpty @PathVariable("paymentId") Integer paymentId) throws RecordNotFoundException {
 		
 		log.info("- cancelPayment - Entry ");
 		Payment payment = paymentService.cancelPayment(paymentId);
 		log.info("- cancelPayment - Exit");
-		
+		//return get all payment
 		return new ResponseEntity<Payment>(payment, HttpStatus.OK);
 	}
 
+	//Calls viewAllPayments Method from Service Layer
 	@GetMapping("/payment")
 	public ResponseEntity<List<Payment>> viewAllPayment() throws RecordNotFoundException{
 		
@@ -85,8 +91,9 @@ public class PaymentController {
 		return new ResponseEntity<List<Payment>>(paymentList, HttpStatus.OK);
 	}
 	
+	//Calls viewPaymentByBooking Method from Service Layer
 	@GetMapping("/payment/booking/{bookingId}")
-	public ResponseEntity<Payment> viewPaymentByBooking(@PathVariable("bookingId") Integer bookingId) throws RecordNotFoundException {	
+	public ResponseEntity<Payment> viewPaymentByBooking(@PathVariable("bookingId") int bookingId) throws RecordNotFoundException {	
 		
 		log.info("- viewPaymentByBooking - Entry ");
 		Payment payment = paymentService.viewPaymentByBooking(bookingId);
@@ -95,6 +102,7 @@ public class PaymentController {
 		return new ResponseEntity<Payment>(payment, HttpStatus.OK);
 	}
 	
+	//Validates the input dates. If valid, calls calculateMonthlyRevenue Method from Service Layer
 	@GetMapping("/payment/{fromDate}/{tillDate}")
 	public ResponseEntity<Double> calculateMonthlyRevenue(@NotEmpty @PathVariable("fromDate") String fromDate, @PathVariable("tillDate") String tillDate) throws NoSuchMethodException, SecurityException, MethodArgumentNotValidException{
 		
@@ -108,19 +116,44 @@ public class PaymentController {
 		return new ResponseEntity<Double>(revenue, HttpStatus.OK);
 	}
 	
-	public Date validateDate (String date) throws NoSuchMethodException, SecurityException, MethodArgumentNotValidException 
+	@GetMapping("/payment/revenue")
+	public ResponseEntity<Double> calculateTotalRevenue() {
+		
+		log.info("- calculateMonthlyRevenue - Entry ");
+		Double revenue = paymentService.calculateTotalRevenue();
+		log.info("- calculateMonthlyRevenue - Exit");
+		
+		return new ResponseEntity<Double>(revenue, HttpStatus.OK);
+	}
+	
+	@GetMapping("/payment/customer/{customerId}")
+	public ResponseEntity<List<Payment>> viewPaymentByCustomer(@PathVariable("customerId") int customerId) throws RecordNotFoundException{
+		
+		log.info("- viewAllPayment - Entry ");
+		List<Payment> paymentList = paymentService.viewPaymentByCustomer(customerId);
+		log.info("- viewAllPayment - Exit");
+		
+		return new ResponseEntity<List<Payment>>(paymentList, HttpStatus.OK);
+	}
+	
+	//Validate method for Input Dates
+	public Date validateDate (String stringDate) throws NoSuchMethodException, SecurityException, MethodArgumentNotValidException 
 	{
-		Date localDate = null;
+		Date date = null;
 		
 		try {
-			if(date.contains("."))
+			String format = "";								//try string replace
+			if(stringDate.contains("."))
 			{
-				localDate = new SimpleDateFormat("dd.MM.yyyy").parse(date); 
+				format = "dd.MM.yyyy";
+				//date = new SimpleDateFormat("dd.MM.yyyy").parse(stringDate); 
 			}
-			else if(date.contains("-")) 
+			else if(stringDate.contains("-")) 
 			{
-				localDate = new SimpleDateFormat("dd-MM-yyyy").parse(date);
+				format = "dd-MM-yyyy";
+				//date = new SimpleDateFormat("dd-MM-yyyy").parse(stringDate);
 			}
+			date = new SimpleDateFormat(format).parse(stringDate);
 		}
 		catch (ParseException e) {
 			BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(date, "date");
@@ -128,7 +161,6 @@ public class PaymentController {
 			MethodParameter methodParamenter = new MethodParameter(this.getClass().getDeclaredMethod("validateDate", String.class), 0);
 			throw new MethodArgumentNotValidException(methodParamenter, bindingResult);
 		}
-		return localDate;
-		
+		return date;
 	}
 }

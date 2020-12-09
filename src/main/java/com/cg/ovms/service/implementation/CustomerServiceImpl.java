@@ -36,6 +36,7 @@ public class CustomerServiceImpl implements CustomerService {
 		return customerDTO;
 	}
 
+	@Override
 	public Customer removeCustomer(Customer customerDTO) {
 
 		log.info("Service Layer - Entry - removeCustomer");
@@ -105,6 +106,41 @@ public class CustomerServiceImpl implements CustomerService {
 		return customer1;
 	}
 
+	@Override
+	public List<Customer> getAllCustomers() throws RecordNotFoundException {
+		
+		log.info("Service Layer - Entry - getAllCustomers");
+
+		List<Customer> customerDTOList = new ArrayList<Customer>();
+		List<CustomerEntity> customerEntityList = customerDao.findAll();
+		Customer customerDTO;
+
+		for (CustomerEntity customerEntityItr : customerEntityList) {
+			customerDTO = convertEntityToDTO(customerEntityItr);
+			customerDTOList.add(customerDTO);
+		}
+		if(customerDTOList.isEmpty())
+		{
+			throw new RecordNotFoundException("No customers found");
+		}
+		log.info("Service Layer - Exit- getAllCustomers");
+		return customerDTOList;
+	}
+	
+	@Override
+	public Customer getCustomerByEmail(String email) throws RecordNotFoundException {
+		
+		CustomerEntity customerEntity = null;
+		Optional<CustomerEntity> customer = customerDao.findByEmailId(email);
+
+		if (customer.isEmpty()) {
+			throw new RecordNotFoundException(" Customer Not Found");
+		}
+		
+		customerEntity = customer.get();
+		return convertEntityToDTO(customerEntity);
+	}
+	
 	public CustomerEntity convertDTOtoEntity(Customer customerDTO) {
 		CustomerEntity customerEntity = new CustomerEntity();
 

@@ -7,6 +7,7 @@ import javax.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,17 +23,18 @@ import com.cg.ovms.exception.RecordNotFoundException;
 import com.cg.ovms.service.UserService;
 
 @RestController
-@RequestMapping("/ovms")
+@CrossOrigin//(origins = "*", allowedHeaders = "*")
+//@RequestMapping("/ovms")
 public class UserController {
 
     @Autowired
     UserService userService;
 
     @PostMapping(value = {"/login"})
-    public ResponseEntity<String> signIn(@Valid @RequestBody User userDto) throws DuplicateRecordException, RecordNotFoundException {
+    public ResponseEntity<User> signIn(@Valid @RequestBody User userDto) throws DuplicateRecordException, RecordNotFoundException {
 
-        userService.SignIn(userDto);
-        return new ResponseEntity<String>("Signed in successfully !", HttpStatus.ACCEPTED);
+        userDto = userService.SignIn(userDto);
+        return new ResponseEntity<User>(userDto, HttpStatus.ACCEPTED);
     }
 
     @PostMapping(value = {"/adduser"})

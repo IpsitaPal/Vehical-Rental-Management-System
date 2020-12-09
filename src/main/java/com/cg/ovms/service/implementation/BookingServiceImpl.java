@@ -1,6 +1,7 @@
 package com.cg.ovms.service.implementation;
 
 import java.time.LocalDate;
+import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,158 +14,244 @@ import org.springframework.stereotype.Service;
 
 import com.cg.ovms.dto.Booking;
 import com.cg.ovms.dto.Customer;
-import com.cg.ovms.dto.Driver;
 import com.cg.ovms.dto.Vehicle;
 import com.cg.ovms.entities.BookingEntity;
 import com.cg.ovms.entities.CustomerEntity;
-import com.cg.ovms.entities.DriverEntity;
 import com.cg.ovms.entities.VehicleEntity;
 import com.cg.ovms.exception.DatabaseException;
+import com.cg.ovms.exception.DuplicateRecordException;
 import com.cg.ovms.exception.RecordNotFoundException;
 import com.cg.ovms.repository.BookingRepository;
+import com.cg.ovms.repository.CustomerRepository;
+import com.cg.ovms.repository.VehicleRepository;
 import com.cg.ovms.service.BookingService;
 
 @Service
 public class BookingServiceImpl implements BookingService {
 
-	static final Logger log = LogManager.getLogger(BookingServiceImpl.class);
+	private static final Logger log = LogManager.getLogger(BookingServiceImpl.class);
 	
 	@Autowired
-	private BookingRepository bookingRepository;
+	private BookingRepository iBookingRepository;
 	
-	//add booking method 
-	//except 0 if already exist duplicate
+	@Autowired
+	private VehicleRepository vehicleDao;
+	
+	@Autowired
+	private CustomerRepository customerDao;
+	
+	Convert convertor = new Convert();
+	 
+	//adding a new booking
 	@Override
 	public Booking addBooking(Booking bookingDTO) {
 		log.info("addBooking-service-started");
-		BookingEntity bookingEntity = convertDTOtoEntity(bookingDTO);
-		
-		bookingRepository.saveAndFlush(bookingEntity);
-		Optional<BookingEntity> returnBooking = bookingRepository.findById(bookingEntity.getBookingId());
-		if(!returnBooking.isPresent()){
-			log.error("exception-adding booking in service layer");
-			throw new DatabaseException("BookingEntity did not get added"); 
+		if(bookingDTO==null) {
+			throw new DatabaseException("Booking cannot be null");
 		}
 		
-		Booking returnBookingDTO = convertEntityToDTO(returnBooking.get());
-		log.info("addBooking-service-ended");
 		
+		if(!vehicleDao.existsById(bookingDTO.getVehicle().getVehicleId())){
+			throw new DatabaseException("Vehicle Doesn't exist");
+		}
+		
+		if(!customerDao.existsById(bookingDTO.getCustomer().getCustomerId())){
+			throw new DatabaseException("Customer Doesn't exist");
+		}
+		
+		Optional<VehicleEntity> vehicleEntity = vehicleDao.findById(bookingDTO.getVehicle().getVehicleId());
+		Vehicle vehicle = convertor.convertVehicleEntityToDTO(vehicleEntity.get());
+		bookingDTO.setVehicle(vehicle);
+		
+		Optional<CustomerEntity> customerEntity = customerDao.findById(bookingDTO.getCustomer().getCustomerId());
+		Customer customer = convertor.convertCustomerEntityToDTO(customerEntity.get());
+		bookingDTO.setCustomer(customer);
+		int days = findDifference(bookingDTO);
+				
+		double totalBookingCost = calculatePaymentPerDay(bookingDTO)* days;
+		bookingDTO.setTotalCost(totalBookingCost);
+		
+		BookingEntity bookingEntity=convertor.convertBookingDTOtoEntity(bookingDTO);
+		
+		if(bookingEntity.getBookingId()!=0 && iBookingRepository.existsById(bookingEntity.getBookingId())) {
+
+			throw new DuplicateRecordException("Duplicate Record Found");
+		}
+		
+		iBookingRepository.saveAndFlush(bookingEntity);
+		Optional<BookingEntity> returnBooking = iBookingRepository.findById(bookingEntity.getBookingId());
+		if(!returnBooking.isPresent()){
+			log.error("exception-adding booking in service layer");
+			throw new DatabaseException("Booking didnot got added"); 
+		}
+		
+		
+		Booking returnBookingDTO = convertor.convertBookingEntityToDTO(returnBooking.get());
+		log.info("addBooking-service-ended");
 		return returnBookingDTO;
+		
 	}
 	
+	//canceling a booking
 	@Override
 	public List<Booking> cancelBooking(Integer bookingId) {
 		log.info("cancelBooking-service-started");
+		if(bookingId == null) {
+			throw new DatabaseException("Booking cannot be null");
+		}
 		List<Booking> bookingDTOList=new ArrayList<Booking>();	
 		
-		Optional<BookingEntity> checkBooking =bookingRepository.findById(bookingId);
-		if(!checkBooking.isPresent()){
+		boolean checkBooking = iBookingRepository.existsById(bookingId);
+		if(!checkBooking){
 			log.error("exception-cancel booking in service layer");
-			throw new RecordNotFoundException("BookingEntity with id " + bookingId + " not found"); 
+			throw new RecordNotFoundException("Booking with the given id doesnot exists"); 
 		}
 		
-		bookingRepository.deleteById(bookingId);
-		List<BookingEntity> bookingEntityList = bookingRepository.findAll();		
+		iBookingRepository.deleteById(bookingId);
+		List<BookingEntity> bookingEntityList = iBookingRepository.findAll();		
 		if(bookingEntityList==null ||  bookingEntityList.isEmpty() ) {
 			log.warn("no bookings avialble after cancel booking in service layer");
 			throw new RecordNotFoundException("No Bookings avaliable");
 		}
+		
 		Booking bookingDTO;
 		for(BookingEntity booking:bookingEntityList){
-			bookingDTO = convertEntityToDTO(booking);
+			bookingDTO = convertor.convertBookingEntityToDTO(booking);
 			bookingDTOList.add(bookingDTO);
 		}
 		
 		log.info("cancelBooking-service-ended");
 		return bookingDTOList;
+		
+		
 	}
 	
+	//updating a booking
 	@Override
 	public Booking updateBooking(Booking bookingDTO) {
 		log.info("updateBooking-service-started");
-		BookingEntity bookingEntity=convertDTOtoEntity(bookingDTO);
-		
-		Optional<BookingEntity> checkBooking =bookingRepository.findById(bookingEntity.getBookingId());
-		if(!checkBooking.isPresent()){
-			log.error("exception-update booking in service layer");
-			throw new RecordNotFoundException("BookingEntity with id " + bookingEntity.getBookingId() + " not found"); 
+		if(bookingDTO == null) {
+			throw new DatabaseException("Booking cannot be null");
 		}
 		
-		bookingRepository.save(bookingEntity);
+		if(!vehicleDao.existsById(bookingDTO.getVehicle().getVehicleId())){
+			throw new DatabaseException("Vehicle Doesn't exist");
+		}
 		
-		Optional<BookingEntity> returnBooking =bookingRepository.findById(bookingEntity.getBookingId());
+		if(!customerDao.existsById(bookingDTO.getCustomer().getCustomerId())){
+			throw new DatabaseException("Customer Doesn't exist");
+		}
 		
-		Booking returnBookingDTO =convertEntityToDTO(returnBooking.get());
+		Optional<VehicleEntity> vehicleEntity = vehicleDao.findById(bookingDTO.getVehicle().getVehicleId());
+		Vehicle vehicle = convertor.convertVehicleEntityToDTO(vehicleEntity.get());
+		bookingDTO.setVehicle(vehicle);
+		
+		Optional<CustomerEntity> customerEntity = customerDao.findById(bookingDTO.getCustomer().getCustomerId());
+		Customer customer = convertor.convertCustomerEntityToDTO(customerEntity.get());
+		bookingDTO.setCustomer(customer);
+		
+		int days = findDifference(bookingDTO);
+		double totalBookingCost = calculatePaymentPerDay(bookingDTO)* days;
+		bookingDTO.setTotalCost(totalBookingCost);
+		BookingEntity bookingEntity = convertor.convertBookingDTOtoEntity(bookingDTO);
+		
+		Boolean checkBooking =iBookingRepository.existsById(bookingEntity.getBookingId());
+		if(!checkBooking){
+			log.error("exception-update booking in service layer");
+			throw new RecordNotFoundException("Booking with the given id doesn't exist"); 
+		}
+		
+		
+		iBookingRepository.save(bookingEntity);
+		
+		Optional<BookingEntity> returnBooking =iBookingRepository.findById(bookingEntity.getBookingId());
+		
 		if(!returnBooking.isPresent()){
 			log.error("exception-couldnot add updated booking in service layer");
 			throw new DatabaseException("updated booking didnot got added"); 
 		}
+		
+		Booking returnBookingDTO = convertor.convertBookingEntityToDTO(returnBooking.get());
 		log.info("updateBooking-service-ended");
 		return returnBookingDTO;
 		
 		
 	}
 	
+	//viewBooking by id
 	@Override
 	public Booking viewBooking(Integer bookingId) {
 		log.info("viewBooking-service-started");
-		Optional<BookingEntity> returnBooking =bookingRepository.findById(bookingId);
+		if(bookingId == null) {
+			throw new DatabaseException("BookingId cannot be null"); 
+		}
+		
+		Optional<BookingEntity> returnBooking =iBookingRepository.findById(bookingId);
 		
 		if(!returnBooking.isPresent()){
 			log.error("exception-view bookingById in service layer");
-			throw new RecordNotFoundException("BookingEntity with id " + bookingId + " not found");
+			throw new RecordNotFoundException("Booking with the given id is not found");
 		}
 		
-			Booking returnBookingDTO =convertEntityToDTO(returnBooking.get());
+			Booking returnBookingDTO = convertor.convertBookingEntityToDTO(returnBooking.get());
 			
 			log.info("viewBooking-service-ended");
 			return returnBookingDTO;
 
 	}
 	
+	//view bookings by customer
 	@Override
-	public List<Booking> viewAllBooking(Customer customerDTO) {
+	public List<Booking> viewAllBooking(Integer customerId) {
 		log.info("viewAllBooking-service-started");
+		if(customerId == null) {
+			throw new DatabaseException("customerid cannot be null");
+		}
+		Customer customerviewDTO = new Customer();
+		customerviewDTO.setCustomerId(customerId);
+		
 		List<Booking> bookingDTOList=new ArrayList<Booking>();
+		CustomerEntity customerEntity = convertor.convertCustomerDTOtoEntity(customerviewDTO);
 		
-		CustomerEntity customerEntity=convertCustomerDTOtoEntity(customerDTO);
-		
-		List<BookingEntity> bookingEntityList= bookingRepository.getByCustomer(customerEntity);
-		if(bookingEntityList.isEmpty()){
+		List<BookingEntity> bookingEntityList= iBookingRepository.getByCustomer(customerEntity);
+		if(bookingEntityList == null || bookingEntityList.isEmpty()){
 			log.error("exception-No booking by given customer in service layer");
-			throw new RecordNotFoundException("BookingEntity with cutomerid " + customerEntity.getCustomerId() + " not found");
+			throw new RecordNotFoundException("Booking with given cutomerid not found");
 		}
 		
 		Booking bookingDTO;
 		for(BookingEntity booking:bookingEntityList){
-			bookingDTO = convertEntityToDTO(booking);
+			bookingDTO = convertor.convertBookingEntityToDTO(booking);
 			bookingDTOList.add(bookingDTO);
 		}
 		
 		log.info("viewAllBooking-service-ended");
 		return bookingDTOList;
-		
-		
-		
+			
 	}
-
+	
+	//view bookings by booking date
 	@Override
 	public List<Booking> viewAllBookingByDate(String bookingDate) {
+		if(bookingDate == null) {
+			throw new DatabaseException("Date Cannot be null");
+		}
 		log.info("viewAllBookingByDate-service-started");
 		List<Booking> bookingDTOList=new ArrayList<Booking>();
 		
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 		LocalDate localBookingDate = LocalDate.parse(bookingDate, formatter);
 		
-		List<BookingEntity> bookingEntityList=bookingRepository.findByBookingDate(localBookingDate);
-		if(bookingEntityList.isEmpty()){
+		List<BookingEntity> bookingEntityList=iBookingRepository.findByBookingDate(localBookingDate);
+		if(bookingEntityList == null || bookingEntityList.isEmpty()){
 			log.error("exception-No booking on given date in service layer");
-			throw new RecordNotFoundException("BookingEntity with date: " + localBookingDate + " not found");
+			throw new RecordNotFoundException("Booking with given date not found");
 		}
+		
 		
 		Booking bookingDTO;
 		for(BookingEntity booking:bookingEntityList){
-			bookingDTO = convertEntityToDTO(booking);
+			bookingDTO = convertor.convertBookingEntityToDTO(booking);
 			bookingDTOList.add(bookingDTO);
 		}
 		
@@ -173,131 +260,53 @@ public class BookingServiceImpl implements BookingService {
 		
 	}
 	
-	public CustomerEntity convertCustomerDTOtoEntity(Customer customerDTO){
-		log.info("convertCustomerDTOtoEntity-started");
-		CustomerEntity customerEntity=new CustomerEntity();
-		customerEntity.setCustomerId(customerDTO.getCustomerId());
-		customerEntity.setFirstName(customerDTO.getFirstName());
-		customerEntity.setLastName(customerDTO.getLastName());
-		customerEntity.setMobileNumber(customerDTO.getMobileNumber());
-		customerEntity.setEmailId(customerDTO.getEmailId());
-		customerEntity.setAddress(customerDTO.getAddress());
-		customerEntity.setListOfBookings(null);
+	@Override
+	public List<Booking> viewAllBookings() {
 		
-		log.info("convertCustomerDTOtoEntity-ended");
-		return customerEntity;
+		log.info("viewAllBookings-service-started");
+		List<Booking> bookingDTOList=new ArrayList<Booking>();
+				
+		List<BookingEntity> bookingEntityList= iBookingRepository.findAll();
+		if(bookingEntityList == null || bookingEntityList.isEmpty()){
+			log.error("exception-No bookings in service layer");
+			throw new RecordNotFoundException("No Bookings Found");
+		}
+		
+		Booking bookingDTO;
+		for(BookingEntity booking:bookingEntityList){
+			bookingDTO = convertor.convertBookingEntityToDTO(booking);
+			bookingDTOList.add(bookingDTO);
+		}
+		
+		log.info("viewAllBookings-service-ended");
+		return bookingDTOList;
+		
 	}
 	
-	public BookingEntity convertDTOtoEntity(Booking bookingDTO) 
+	public double calculatePaymentPerDay(Booking booking) 
 	{
-		log.info("convertDTOtoEntity-started");
-		BookingEntity bookingEntity = new BookingEntity();
-		
-		bookingEntity.setBookingId(bookingDTO.getBookingId());
-		bookingEntity.setBookingDate(bookingDTO.getBookingDate());
-		bookingEntity.setBookedTillDate(bookingDTO.getBookedTillDate());
-		bookingEntity.setBookingDescription(bookingDTO.getBookingDescription());
-		bookingEntity.setTotalCost(bookingDTO.getTotalCost());
-		bookingEntity.setDistance(bookingDTO.getDistance());
-		
-		CustomerEntity customerEntity = new CustomerEntity();
-		
-		customerEntity.setCustomerId(bookingDTO.getCustomer().getCustomerId());
-		customerEntity.setFirstName(bookingDTO.getCustomer().getFirstName());
-		customerEntity.setLastName(bookingDTO.getCustomer().getLastName());
-		customerEntity.setMobileNumber(bookingDTO.getCustomer().getMobileNumber());
-		customerEntity.setEmailId(bookingDTO.getCustomer().getEmailId());
-		customerEntity.setAddress(bookingDTO.getCustomer().getAddress());
-		
-		VehicleEntity vehicleEntity = new VehicleEntity();
-		
-		vehicleEntity.setVehicleId(bookingDTO.getVehicle().getVehicleId());
-		vehicleEntity.setVehicleNumber(bookingDTO.getVehicle().getVehicleNumber());
-		vehicleEntity.setType(bookingDTO.getVehicle().getType());
-		vehicleEntity.setCategory(bookingDTO.getVehicle().getCategory());
-		vehicleEntity.setDescription(bookingDTO.getVehicle().getDescription());
-		vehicleEntity.setLocation(bookingDTO.getVehicle().getLocation());
-		vehicleEntity.setCapacity(bookingDTO.getVehicle().getCapacity());
-		vehicleEntity.setChargesPerKM(bookingDTO.getVehicle().getChargesPerKM());
-		vehicleEntity.setFixedCharges(bookingDTO.getVehicle().getFixedCharges());
-		
-		DriverEntity driverEntity = new DriverEntity();
-		
-		driverEntity.setDriverId(bookingDTO.getVehicle().getDriver().getDriverId());
-		driverEntity.setFirstName(bookingDTO.getVehicle().getDriver().getFirstName());
-		driverEntity.setLastName(bookingDTO.getVehicle().getDriver().getLastName());
-		driverEntity.setEmail(bookingDTO.getVehicle().getDriver().getEmail());
-		driverEntity.setContactNumber(bookingDTO.getVehicle().getDriver().getContactNumber());
-		driverEntity.setAddress(bookingDTO.getVehicle().getDriver().getAddress());
-		driverEntity.setChargesPerDay(bookingDTO.getVehicle().getDriver().getChargesPerDay());
-		driverEntity.setLicenseNo(bookingDTO.getVehicle().getDriver().getLicenseNo());
-		
-		vehicleEntity.setDriver(driverEntity);
-		vehicleEntity.setListOfBookings(null);
-		customerEntity.setListOfBookings(null);
-		bookingEntity.setCustomer(customerEntity);
-		bookingEntity.setVehicle(vehicleEntity);
-		
-		log.info("convertDTOtoEntity-ended");
-		return bookingEntity;
+		double driverCharge = booking.getVehicle().getDriver().getChargesPerDay();
+		double fixedCharge = booking.getVehicle().getFixedCharges();
+		double chargePerKM = booking.getVehicle().getChargesPerKM();
+		double distance = booking.getDistance();
+		double chargePerDay = driverCharge + fixedCharge + (distance*chargePerKM); 
+		return chargePerDay;
 	}
 	
-	public Booking convertEntityToDTO(BookingEntity bookingEntity)
-	{
-		log.info("convertEntityToDTO-started");
+	public int findDifference(Booking booking){ 
 		
-		Booking bookingDTO = new Booking();
-		
-		bookingDTO.setBookingId(bookingEntity.getBookingId());
-		bookingDTO.setBookingDate(bookingEntity.getBookingDate());
-		bookingDTO.setBookedTillDate(bookingEntity.getBookedTillDate());
-		bookingDTO.setBookingDescription(bookingEntity.getBookingDescription());
-		bookingDTO.setTotalCost(bookingEntity.getTotalCost());
-		bookingDTO.setDistance(bookingEntity.getDistance());
-		
-		Customer customerDTO = new Customer();
-		
-		CustomerEntity customerEntity=bookingEntity.getCustomer();
-		customerDTO.setCustomerId(customerEntity.getCustomerId());
-		customerDTO.setFirstName(customerEntity.getFirstName());
-		customerDTO.setLastName(customerEntity.getLastName());
-		customerDTO.setMobileNumber(customerEntity.getMobileNumber());
-		customerDTO.setEmailId(customerEntity.getEmailId());
-		customerDTO.setAddress(customerEntity.getAddress());
-		
-		Vehicle vehicleDTO = new Vehicle();
-		
-		VehicleEntity vehicleEntity=bookingEntity.getVehicle();
-		vehicleDTO.setVehicleId(vehicleEntity.getVehicleId());
-		vehicleDTO.setVehicleNumber(vehicleEntity.getVehicleNumber());
-		vehicleDTO.setType(vehicleEntity.getType());
-		vehicleDTO.setCategory(vehicleEntity.getCategory());
-		vehicleDTO.setDescription(vehicleEntity.getDescription());
-		vehicleDTO.setLocation(vehicleEntity.getLocation());
-		vehicleDTO.setCapacity(vehicleEntity.getCapacity());
-		vehicleDTO.setChargesPerKM(vehicleEntity.getChargesPerKM());
-		vehicleDTO.setFixedCharges(vehicleEntity.getFixedCharges());
-		
-		Driver driverDTO = new Driver();
-		
-		driverDTO.setDriverId(bookingEntity.getVehicle().getDriver().getDriverId());
-		driverDTO.setFirstName(bookingEntity.getVehicle().getDriver().getFirstName());
-		driverDTO.setLastName(bookingEntity.getVehicle().getDriver().getLastName());
-		driverDTO.setEmail(bookingEntity.getVehicle().getDriver().getEmail());
-		driverDTO.setContactNumber(bookingEntity.getVehicle().getDriver().getContactNumber());
-		driverDTO.setAddress(bookingEntity.getVehicle().getDriver().getAddress());
-		driverDTO.setChargesPerDay(bookingEntity.getVehicle().getDriver().getChargesPerDay());
-		driverDTO.setLicenseNo(bookingEntity.getVehicle().getDriver().getLicenseNo());
-		
-	
-		vehicleDTO.setDriver(driverDTO);
-		vehicleDTO.setListOfBookings(null);
-		customerDTO.setListOfBookings(null);
-		bookingDTO.setCustomer(customerDTO);
-		bookingDTO.setVehicle(vehicleDTO);
-		
-		log.info("convertEntityToDTO-ended");
-		return bookingDTO;
+	Period diff = Period.between(booking.getBookingDate(),booking.getBookedTillDate()); 
+	int days = diff.getDays() + diff.getMonths()*30 + diff.getYears()*365;
+	if(days == 0) {
+		days = 1;
 	}
+	return days;
+	}
+
+
+	
+
+
+	
 
 }

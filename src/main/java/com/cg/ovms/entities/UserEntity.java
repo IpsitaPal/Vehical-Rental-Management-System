@@ -4,6 +4,8 @@ import javax.persistence.Column;
 import java.io.Serializable;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
 
 @Entity
@@ -22,11 +24,11 @@ public class UserEntity implements Serializable {
 	
 	@Column(name="ROLE")
 	private String role;
-	/*
-	@OneToOne
-	@JoinColumn(name="CUSTOMER_ID")
-	private CustomerEntity customer;
-	*/
+	
+	//@OneToOne
+	//@JoinColumn(name="CUSTOMER_ID")
+	//private CustomerEntity customer;
+	
 	public UserEntity() {
 		
 	}

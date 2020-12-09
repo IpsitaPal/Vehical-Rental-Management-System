@@ -9,6 +9,7 @@ import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +24,7 @@ import com.cg.ovms.exception.RecordNotFoundException;
 import com.cg.ovms.service.CustomerService;
 
 @RestController
+@CrossOrigin//(origins = "*", allowedHeaders = "*")
 @RequestMapping("/ovms")
 public class CustomerController {
 
@@ -80,4 +82,17 @@ public class CustomerController {
 		List<Customer> customerList = customerService.viewAllCustomer(FirstName);
 		return new ResponseEntity<List<Customer>>(customerList, HttpStatus.OK);
 	}
+	
+	@GetMapping("/customer")
+	public ResponseEntity<List<Customer>> getAllCustomer() throws RecordNotFoundException {
+		List<Customer> customerList = customerService.getAllCustomers();
+		return new ResponseEntity<List<Customer>>(customerList, HttpStatus.OK);
+	}
+	
+	@GetMapping("/getcustomer/{email}")
+	public ResponseEntity<Customer> getCustomerByEmail(@PathVariable("email") String email) throws RecordNotFoundException {
+		Customer customer = customerService.getCustomerByEmail(email);
+		return new ResponseEntity<Customer>(customer, HttpStatus.OK);
+	}
+
 }

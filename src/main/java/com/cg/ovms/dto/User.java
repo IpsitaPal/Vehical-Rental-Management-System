@@ -1,13 +1,15 @@
 package com.cg.ovms.dto;
 
+import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 public class User {
 
 
-	@NotBlank
-	@Size(min=5,max=15,message="Userid must be min 5 chars and max 15)")
+	@NotNull
+	@Email(message = "Enter valid email")
 	private String userId;
 	
 	@NotBlank
@@ -16,10 +18,10 @@ public class User {
 	private String password;
 	
 	@NotBlank
-	@Size(min=5,max=15,message="Role must be min 8 chars and max 15)")
+	@Size(min=5,max=15,message="Role must be min 5 chars and max 15)")
 	private String role;
 	
-	//@NotNull
+	//
 	//private Customer customer;
 
 	public User() {

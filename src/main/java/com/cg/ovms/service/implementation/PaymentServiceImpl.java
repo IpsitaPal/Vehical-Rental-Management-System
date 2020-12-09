@@ -33,6 +33,9 @@ public class PaymentServiceImpl implements PaymentService {
 	@Autowired
 	private PaymentRepository paymentDAO;
 	
+	
+	//If payment with same bookingId exists, throws duplicate record error. Else, saves data to database. 
+	//If data is not saved in database, throws database exception. Else, returns data back to controller layer
 	@Override
 	public Payment addPayment(Payment paymentDTO) throws DuplicateRecordException, DatabaseException {				
 		
@@ -40,7 +43,7 @@ public class PaymentServiceImpl implements PaymentService {
 		
 		if(paymentDTO == null)
 		{
-			throw new NullPointerException("Payment can't be Null");
+			throw new DatabaseException("Payment can't be Null");
 		}
 		
 		PaymentEntity paymentEntity = convertDTOtoEntity(paymentDTO);
@@ -50,14 +53,12 @@ public class PaymentServiceImpl implements PaymentService {
 			throw new DuplicateRecordException("Payment already exists for this booking. Please update payment.");
 		} 
 		
-		log.info(paymentDAO.saveAndFlush(paymentEntity));
 		paymentEntity = paymentDAO.saveAndFlush(paymentEntity);
 		
 		if(paymentEntity == null)
 		{
 			throw new DatabaseException("Payment Not Added");
 		}
-		log.info("e");
 		
 		paymentDTO = convertEntityToDTO(paymentEntity);
 		
@@ -66,6 +67,7 @@ public class PaymentServiceImpl implements PaymentService {
 		
 	}
 
+	//If data is not updated in database, throws database exception. Else, returns data back to controller layer
 	@Override
 	public Payment updatePayment(Payment paymentDTO) {
 		
@@ -73,7 +75,7 @@ public class PaymentServiceImpl implements PaymentService {
 		
 		if(paymentDTO == null)
 		{
-			throw new NullPointerException("PaymentId can't be Null");
+			throw new DatabaseException("PaymentId can't be Null");
 		}
 		
 		PaymentEntity paymentEntity = convertDTOtoEntity(paymentDTO);
@@ -89,8 +91,11 @@ public class PaymentServiceImpl implements PaymentService {
 		log.info("- updatePayment - Exit");
 		
 		return paymentDTO;
-	}
-	
+	} 
+
+	//If payment with input Id is not found, throws record not found Exception. 
+	//If payment with same bookingId exists, throws duplicate record error. Else, saves data to database. 
+	//If data is not updated in database, throws database exception. Else, returns data back to controller layer
 	@Override
 	public Payment cancelPayment(int paymentId) throws RecordNotFoundException {				
 		
@@ -99,7 +104,7 @@ public class PaymentServiceImpl implements PaymentService {
 		Optional<PaymentEntity> optionalPaymentEntity = paymentDAO.findById(paymentId);
 		if(!optionalPaymentEntity.isPresent())
 		{
-			throw new RecordNotFoundException("Data Not Found");
+			throw new RecordNotFoundException("Payment doesn't exist in database. Add payment first.");
 		}
 			
 		PaymentEntity paymentEntity = optionalPaymentEntity.get();
@@ -127,6 +132,7 @@ public class PaymentServiceImpl implements PaymentService {
 		
 	}
 	
+	//Retrieves all data from database. Throws record not found error if no data found.
 	@Override
 	public List<Payment> viewAllPayments() {						
 	
@@ -153,14 +159,13 @@ public class PaymentServiceImpl implements PaymentService {
 		return paymentDTOList;
 	}
 		
+	//Retrieves single record with input bookingId from database. Throws record not found error if no data found.
 	@Override
-	public Payment viewPaymentByBooking(Integer bookingId) throws RecordNotFoundException {
+	public Payment viewPaymentByBooking(int bookingId) throws RecordNotFoundException {
 		
 		log.info("viewPaymentByBooking - Entry");
 		
-		BookingEntity bookingEntity = new BookingEntity();
-		bookingEntity.setBookingId(bookingId);
-		PaymentEntity paymentEntity = paymentDAO.findByBooking(bookingEntity);
+		PaymentEntity paymentEntity = paymentDAO.findByBookingId(bookingId);
 		
 		if(paymentEntity == null)
 		{
@@ -168,24 +173,31 @@ public class PaymentServiceImpl implements PaymentService {
 		}
 		
 		Payment paymentDTO = convertEntityToDTO(paymentEntity);
-		
-		if(paymentDTO == null)
-		{
-			throw new DatabaseException("No Payment Found");
-		}
-		
+	
 		log.info("- viewPaymentByBooking - Exit");
 		
 		return paymentDTO;		
 	}
 	
+	//Retrieves all data from database with paymentDate between the input dates.
+	//Throws error if none found
 	@Override
-	public double calculateMonthlyRevenue(Date date1, Date date2) {
+	public double calculateMonthlyRevenue(Date date1, Date date2) {		
 		
 		log.info("calculateMonthlyRevenue - Entry");
 		
+		if(date1 == null || date2 == null)
+		{
+			throw new DatabaseException("Date can't be Null");
+		}
+		
 		double sum = 0.0;
 		List<PaymentEntity> resultPaymentList = paymentDAO.getAllBetweenTwoDates(date1, date2); 
+		
+		if(resultPaymentList.isEmpty())
+		{
+			throw new RecordNotFoundException("No Records Found");
+		}
 		
 		for(PaymentEntity paymentEntityItr: resultPaymentList)			
 		{
@@ -197,6 +209,59 @@ public class PaymentServiceImpl implements PaymentService {
 		return sum;
 	}
 
+	//Retrieves all data from database with same customer ID.
+	@Override
+	public List<Payment> viewPaymentByCustomer(int customerId) throws RecordNotFoundException {
+		
+		if(customerId == 0)
+		{
+			throw new DatabaseException("CustomerId can't be Null");
+		}
+		
+		List<PaymentEntity> paymentEntity = paymentDAO.getPaymentByCustomer(customerId);
+		
+		if(paymentEntity == null)
+		{
+			throw new RecordNotFoundException("Data Not Found");
+		}
+		
+		List<Payment> paymentDTOList = new ArrayList<Payment>();
+		for(PaymentEntity paymentEntityItr: paymentEntity)
+		{
+			paymentDTOList.add(convertEntityToDTO(paymentEntityItr));
+		}
+		log.info("- viewPaymentByBooking - Exit");
+		
+		return paymentDTOList;		
+	}
+	
+	@Override
+	public double calculateTotalRevenue() {
+		log.info("calculateTotalRevenue - Entry");
+		
+		double sum = 0.0;
+		List<PaymentEntity> resultPaymentList = paymentDAO.findAll();
+		
+		if(resultPaymentList.isEmpty())
+		{
+			throw new RecordNotFoundException("No Records Found");
+		}
+		
+		for(PaymentEntity paymentEntityItr: resultPaymentList)			
+		{
+			if(paymentEntityItr.getPaymentStatus() != "Cancelled")
+			{
+				log.info(sum);
+				sum += paymentEntityItr.getBooking().getTotalCost();
+			}
+		}
+		
+		log.info("- calculateTotalRevenue - Exit");
+		
+		return sum;
+	}
+	
+	//Converts the input DTO Object to an Entity Object
 	public PaymentEntity convertDTOtoEntity(Payment paymentDTO) 
 	{
 		PaymentEntity paymentEntity = new PaymentEntity();
@@ -257,6 +322,7 @@ public class PaymentServiceImpl implements PaymentService {
 		return paymentEntity;
 	}
 	
+	//Converts the input Entity Object to DTO Object
 	public Payment convertEntityToDTO(PaymentEntity paymentEntity)
 	{
 		Payment paymentDTO = new Payment();
@@ -316,5 +382,7 @@ public class PaymentServiceImpl implements PaymentService {
 		
 		return paymentDTO;
 	}
+
+	
 
 }

@@ -8,6 +8,7 @@ import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +23,7 @@ import com.cg.ovms.entities.VehicleEntity;
 import com.cg.ovms.service.VehicleService;
 
 @RestController
+@CrossOrigin//(origins = "*", allowedHeaders = "*")
 @RequestMapping("/ovms")
 public class VehicleController
 {
@@ -47,19 +49,18 @@ public class VehicleController
 
 		
 
-		// removeVehicle Controller
+		//removeVehicle Controller
 		@DeleteMapping("/vehicle/{vehicleId}")
-		public ResponseEntity<List<Vehicle>> removeVehicle(@Valid @PathVariable("vehicleId") Integer vehicleId)
-		{
-			Log.info("RemoveVehicle Contoller Started");
+		public ResponseEntity<List<Vehicle>> removeVehicle(@Valid @PathVariable("vehicleId") Integer vehicleId) {
+
+			Log.info("removeVehicle contoller started");
 			
 			VehicleEntity vehicle = new VehicleEntity();
 			vehicle.setVehicleId(vehicleId);
-			
 			List<Vehicle> vehicleEntity = vehicleService.removeVehicle(vehicleId);
 			
-			Log.info("addVehicle Contoller Completed");
-				
+			Log.info("removeVehicle contoller completed");
+
 			return new ResponseEntity<List<Vehicle>>(vehicleEntity, HttpStatus.OK);
 		}
 

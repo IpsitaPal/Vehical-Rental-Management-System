@@ -19,7 +19,7 @@ public class Booking {
 	@NotBlank(message = "bookingDescription is mandatory")
 	private String bookingDescription;
 	
-	@DecimalMin(value = "50.00", message = "totalCost should be min of 50.00")
+	//@DecimalMin(value = "50.00", message = "totalCost should be min of 50.00")
 	private double totalCost;
 	
 	@DecimalMin(value = "5.00",message = "distance should be min of 5.00kms")
@@ -33,7 +33,7 @@ public class Booking {
 	}
 	
 	public Booking(int bookingId, Customer customer, Vehicle vehicle, LocalDate bookingDate, LocalDate bookedTillDate,
-			String bookingDescription, double totalCost, double distance) {
+			String bookingDescription, double distance) {
 		super();
 		this.bookingId = bookingId;
 		this.customer = customer;
@@ -41,7 +41,6 @@ public class Booking {
 		this.bookingDate = bookingDate;
 		this.bookedTillDate = bookedTillDate;
 		this.bookingDescription = bookingDescription;
-		this.totalCost = totalCost;
 		this.distance = distance;
 	}
 	
@@ -161,5 +160,13 @@ public class Booking {
 			return false;
 		return true;
 	}
-	
+
+	/*public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+	*/
 }

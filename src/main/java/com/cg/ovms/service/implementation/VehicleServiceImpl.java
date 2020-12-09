@@ -26,8 +26,6 @@ public class VehicleServiceImpl implements VehicleService {
 	@Autowired
 	private VehicleRepository vehicleDao;
 	
-	
-	
 	// addVehicle Service Implementation
 	@Override
 	public Vehicle addVehicle(Vehicle vehicleDTO)
@@ -49,42 +47,38 @@ public class VehicleServiceImpl implements VehicleService {
 		return convertEntityToDTO(vehicleEntity);
 	}
 
-	
-	
-	// removeVehicle Service Implementation
-	@Override
-	public List<Vehicle> removeVehicle(Integer vehicleId)
-	{
-		Log.info("Remove Vehicle Service Started");
+	//removeVehicle Service Implementation
+		@Override
+		public List<Vehicle> removeVehicle(Integer vehicleId) {
 
-		Optional<VehicleEntity> remove = vehicleDao.findById(vehicleId);
+			Log.info("removeVehicle service started");
+			if (vehicleId == null) {
+				throw new DatabaseException("Vehicle cannot be null");
+			}
+			Optional<VehicleEntity> remove = vehicleDao.findById(vehicleId);
 
-		if (!remove.isPresent())
-		{
-			Log.error("exception of removing vehiclein service layer");
-			throw new RecordNotFoundException("Vehicle with id " + vehicleId + " not found");
+			if (!remove.isPresent()) {
+				Log.error("exception of removing vehiclein service layer");
+				throw new RecordNotFoundException("Booking with the given id doesnot exists");
+				
+			}
+
+			vehicleDao.deleteById(vehicleId);
+			List<VehicleEntity> vehicleEntityList = vehicleDao.findAll();
+
+			if (vehicleEntityList == null || vehicleEntityList.isEmpty()) {
+				Log.warn("no vehicles avialble after cancelling in service layer");
+				throw new RecordNotFoundException("No Vehicles avaliable");
+			}
+
+			List<Vehicle> vehicleDTOList = new ArrayList<Vehicle>();
+			for (VehicleEntity vehicleItr : vehicleEntityList) {
+				vehicleDTOList.add(convertEntityToDTO(vehicleItr));
+			}
+
+			Log.info("removeVehicle service completed");
+			return vehicleDTOList;
 		}
-		
-		vehicleDao.deleteById(vehicleId);
-		List<VehicleEntity> vehicleEntityList = vehicleDao.findAll();
-		
-		if (vehicleEntityList == null || vehicleEntityList.isEmpty())
-		{
-			Log.warn("no vehicles availble after cancelling in service layer");
-			throw new RecordNotFoundException("No Vehicles avaliable");
-		}
-		
-		List<Vehicle> vehicleDTOList = new ArrayList<Vehicle>();
-		for(VehicleEntity vehicleItr: vehicleEntityList)
-		{
-			vehicleDTOList.add(convertEntityToDTO(vehicleItr));
-		}
-		
-		Log.info("Remove Vehicle Service Completed");
-		return vehicleDTOList;
-	}
-	
-	
 	
 	// ViewVehicle Service Implementation
 	@Override
@@ -107,8 +101,6 @@ public class VehicleServiceImpl implements VehicleService {
 		return vehicle;
 	}
 
-	
-	
 	// UpdateVehicle Service Implementation
 	@Override
 	public Vehicle updateVehicle(Vehicle vehicleDTO) {
@@ -140,8 +132,6 @@ public class VehicleServiceImpl implements VehicleService {
 		return vehicleDTO;
 	}
 
-	
-	
 	// ViewAllVehicle Service Implementation
 	@Override
 	public List<Vehicle> viewAllVehicle() {
@@ -166,6 +156,15 @@ public class VehicleServiceImpl implements VehicleService {
 
 	}
 
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	
 	/* //ViewAllBookingByVehicle Logic

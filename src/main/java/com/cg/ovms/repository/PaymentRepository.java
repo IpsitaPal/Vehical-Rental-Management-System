@@ -16,13 +16,12 @@ public interface PaymentRepository extends JpaRepository<PaymentEntity, Integer>
 
 	public PaymentEntity findByBooking(BookingEntity bookingEntity);			//(@Param("findByBooking") Booking booking);
 	
-	//public PaymentEntity findByPaymentMode(String paymentMode);
-	
 	@Query("SELECT payment FROM PaymentEntity payment  WHERE payment.paymentDate BETWEEN :date1 AND :date2")
 	public List<PaymentEntity> getAllBetweenTwoDates(@Param("date1")Date startDate, @Param("date2") Date tillDate);
 
-	//@SuppressWarnings("unchecked")
-	//public PaymentEntity saveAndFlush(PaymentEntity paymentEntity);
+	@Query("SELECT payment FROM PaymentEntity payment  WHERE payment.booking.customer.id = :cust_id")
+	public List<PaymentEntity> getPaymentByCustomer(@Param("cust_id")int customerID);
 	
-	
+	@Query("SELECT payment FROM PaymentEntity payment  WHERE payment.booking.id = :booking_id")
+	public PaymentEntity findByBookingId(@Param("booking_id") int bookingId);
 }

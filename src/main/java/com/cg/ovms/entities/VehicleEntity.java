@@ -21,7 +21,7 @@ public class VehicleEntity implements Serializable {
 	private static final long serialVersionUID = 1L;
 	@Id
 	@Column(name = "VEHICLE_ID")
-	@GeneratedValue(strategy=GenerationType.AUTO)
+	@GeneratedValue(strategy=GenerationType.IDENTITY)
 	private  int vehicleId;
 	
 	@Column(name = "VEHICLE_NUMBER")

@@ -1,7 +1,7 @@
 package com.cg.ovms.entities;
 
-import java.time.LocalDate;
 import java.io.Serializable;
+import java.time.LocalDate;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -25,7 +25,7 @@ public class BookingEntity implements Serializable {
 
 	@Id
 	@Column(name = "BOOKING_ID")
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private int bookingId;
 	
 	
@@ -50,11 +50,12 @@ public class BookingEntity implements Serializable {
 	@DecimalMin(value = "5.00",message = "distance should be min of 5.00kms")
 	private double distance;
 	
-	@ManyToOne(cascade = CascadeType.ALL)
+	
+	@ManyToOne
 	@JoinColumn(name = "CUSTOMER_ID")
 	private CustomerEntity customer;
 	
-	@ManyToOne(cascade=CascadeType.ALL)
+	@ManyToOne
 	@JoinColumn(name = "VEHICLE_ID")
 	private VehicleEntity vehicle;
 	
@@ -71,7 +72,7 @@ public class BookingEntity implements Serializable {
 		this.bookingDate = bookingDate;
 		this.bookedTillDate = bookedTillDate;
 		this.bookingDescription = bookingDescription;
-		this.totalCost = totalCost;
+		//this.totalCost = totalCost;
 		this.distance = distance;
 	}
 	
@@ -124,10 +125,9 @@ public class BookingEntity implements Serializable {
 	}
 	public void setDistance(double distance) {
 		this.distance = distance;
-	}
+	}	
 	
-	
-	
+
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
@@ -200,7 +200,16 @@ public class BookingEntity implements Serializable {
 		return true;
 	}
 	
+	/*
+	@Column(name = "STATUS")
+	private String status;
 	
 	
-	
+	public String getStatus() {
+		return status;
+	}
+	public void setStatus(String status) {
+		this.status = status;
+	}
+	*/
 }

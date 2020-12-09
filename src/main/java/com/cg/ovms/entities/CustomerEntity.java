@@ -20,7 +20,7 @@ public class CustomerEntity implements Serializable {
 
 	@Id
 	@Column(name="CUSTOMER_ID")
-	@GeneratedValue(strategy=GenerationType.AUTO)
+	@GeneratedValue(strategy=GenerationType.IDENTITY)
 	private Integer customerId;
 
 	@Column(name="FIRST_NAME")
@@ -32,7 +32,7 @@ public class CustomerEntity implements Serializable {
 	@Column(name="MOBILE_NUMBER")
 	private String mobileNumber;
 	
-	@Column(name="EMAIL")
+	@Column(name="EMAIL", unique=true)
 	private String emailId;
 	
 	@Column(name="ADDRESS")

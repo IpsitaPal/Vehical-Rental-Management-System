@@ -9,6 +9,7 @@ import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,14 +20,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cg.ovms.dto.Booking;
-import com.cg.ovms.dto.Customer;
 import com.cg.ovms.service.BookingService;
 
+@CrossOrigin
 @RestController
-@RequestMapping("/ovms")
+@RequestMapping(value="/ovms")
 public class BookingController {
 	 
-	static final Logger log = LogManager.getLogger(BookingController.class);
+	private static final Logger log = LogManager.getLogger(BookingController.class);
 	
 	@Autowired
 	private BookingService bookingService;
@@ -69,20 +70,30 @@ public class BookingController {
 	}
 
 	//view all bookings by Customer
-	@GetMapping("/booking")
-	public ResponseEntity<List<Booking>> viewAllBooking(@Valid @RequestBody Customer customer){
+	@GetMapping("/bookingsby/{customerId}")
+	public ResponseEntity<List<Booking>> viewAllBooking(@Valid @PathVariable("customerId")Integer customerId){
 		log.info("viewAllBooking-contoller-started");
-		List<Booking> allBooking = bookingService.viewAllBooking(customer);
+		List<Booking> allBooking = bookingService.viewAllBooking(customerId);
 		log.info("viewAllBooking-contoller-ended");
 		return new ResponseEntity<List<Booking>>(allBooking, HttpStatus.OK);
 	}
 	
 	//view all bookings by booking date
-	@GetMapping("/booking/date/{bookingDate}")// @DateTimeFormat(pattern="yyyy-MM-dd")
+	@GetMapping("/bookings/{bookingDate}")
 	public ResponseEntity<List<Booking>> viewAllBookingByDate(@Valid @PathVariable("bookingDate") String bookingDate){
 		log.info("viewAllBookingByDate-contoller-started");
 		List<Booking> allBooking = bookingService.viewAllBookingByDate(bookingDate);
 		log.info("viewAllBookingByDate-contoller-ended");
 		return new ResponseEntity<List<Booking>>(allBooking, HttpStatus.OK);
 	}
+	
+	@GetMapping("/bookings")
+	public ResponseEntity<List<Booking>> viewAllBookings(){
+		log.info("viewAllBookings-contoller-started");
+		List<Booking> allBooking = bookingService.viewAllBookings();
+		log.info("viewAllBookings-contoller-ended");
+		return new ResponseEntity<List<Booking>>(allBooking, HttpStatus.OK);
+	}
+	
+	
 }

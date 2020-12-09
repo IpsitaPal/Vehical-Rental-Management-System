@@ -16,6 +16,9 @@ public interface PaymentService {
 	public Payment updatePayment(Payment payment);
 	public Payment cancelPayment(int paymentId) throws RecordNotFoundException;
 	public List<Payment> viewAllPayments();
-	public Payment viewPaymentByBooking(Integer bookingId) throws RecordNotFoundException;
+	
+	public Payment viewPaymentByBooking(int bookingId) throws RecordNotFoundException;
 	public double calculateMonthlyRevenue(Date date1, Date date2);
+	public double calculateTotalRevenue();
+	public List<Payment> viewPaymentByCustomer(int customerId);
 } 

@@ -26,8 +26,6 @@ public class GlobalExceptionHandling extends ResponseEntityExceptionHandler {
 		
 		log.error("Input Not Valid");
 		
-		System.out.println(ex.getBindingResult().getFieldErrorCount());
-		
 		Map<String, Object> body = new LinkedHashMap<>();
 		body.put("Timestamp", new Date());
 		body.put("Status", status.value());
